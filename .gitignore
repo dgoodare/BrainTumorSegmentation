@@ -1,4 +1,6 @@
 RawData/
 TrainingData/
+logs/
+TrainedModels
 name_mapping.csv
 survival_info.csv

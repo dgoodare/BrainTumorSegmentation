@@ -2,7 +2,7 @@ import os
 import time
 import nibabel as nib
 import numpy as np
-from torch import from_numpy, save, load
+from torch import from_numpy, save, load, stack, permute
 from torch.utils.data import Dataset
 
 DATASET_PATH = 'RawData'
@@ -22,24 +22,27 @@ class BraTSDataset(Dataset):
 
     def __getitem__(self, item):
         """Load a given sample from the dataset"""
-        item_dir = f"TrainingData/{item}"
 
-        flair = load(item_dir + "/flair.pt")
-        t1 = load(item_dir + "/t1.pt")
-        t1ce = load(item_dir + "/t1ce.pt")
-        t2 = load(item_dir + "/t2.pt")
+        # all sample directory names are 3 characters long
+        # so concatenate zeros to the start of the directory name where necessary
+        prefix = ''
+        if item < 10:
+            prefix = '00'
+        elif item < 100:
+            prefix = '0'
+
+        item_dir = f"TrainingData/{prefix}{item}"
+
+        sample = load(item_dir + "/sample.pt")
         mask = load(item_dir + "/mask.pt")
 
         # check if a transformation has been specified
         if self.transform is not None:
-            t = self.transform(flair=flair, t1=t1, t1ce=t1ce, t2=t2, mask=mask)
-            flair = t["flair"]
-            t1 = t["t1"]
-            t1ce = t["t1ce"]
-            t2 = t["t2"]
+            t = self.transform(sample=sample, mask=mask)
+            sample = t["sample"]
             mask = t["mask"]
 
-        return flair, t1, t1ce, t2, mask
+        return sample, mask
 
 
 def create_dir_list(path):
@@ -88,13 +91,13 @@ def create_dataset():
         t2 = from_numpy(np.array(nii_t2.dataobj, dtype='int16'))
         mask = from_numpy(np.array(nii_mask.dataobj, dtype='int16'))
 
+        # combine modalities into a single sample
+        sample = stack((flair, t1, t1ce, t2), 0)
+
         # create directory for each id
         os.mkdir(f"TrainingData/{id}")
         # save tensors in new directory
-        save(flair, f"TrainingData/{id}/flair.pt")
-        save(t1, f"TrainingData/{id}/t1.pt")
-        save(t1ce, f"TrainingData/{id}/t1ce.pt")
-        save(t2, f"TrainingData/{id}/t2.pt")
+        save(sample, f"TrainingData/{id}/sample.pt")
         save(mask, f"TrainingData/{id}/mask.pt")
 
     print(f"Dataset created in {time.time()-start_time:.2f} seconds")

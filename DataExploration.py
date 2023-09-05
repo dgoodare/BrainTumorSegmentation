@@ -11,8 +11,10 @@ import nibabel as nib
 import gif_your_nifti.core as nif2gif # handy library for displaying multi-slice data as a gif
 
 # pytorch libraries
+import torch
 
 DATASET_PATH = 'RawData/'
+
 
 def get_data_shape():
     test_flair = nib.nifti1.load(DATASET_PATH + 'BraTS20_Training_001/BraTS20_Training_001_flair.nii')
@@ -53,6 +55,15 @@ def display_slice(slice):
     fig, ax1 = plt.subplots(1, 1, figsize=(15, 15))
     ax1.imshow(rotate(montage(test_t1[50:-50, :, :]), 90, resize=True), cmap='gray')
     plt.show()
+    fig, ax5 = plt.subplots(1, 1, figsize=(15, 15))
+    ax5.imshow(rotate(montage(test_mask[50:-50, :, :]), 90, resize=True), cmap='gray')
+    plt.show()
 
 
-display_slice(25)
+def get_sample_shape():
+    sample = torch.load("TrainingData/001/sample.pt")
+    print(f"sample shape: {sample.shape}")
+
+
+# display_slice(25)
+get_sample_shape()
