@@ -9,7 +9,7 @@ def get_sample_shape():
 
 batch_size = 16
 img_size = get_sample_shape()[0]
-img_channels = 4  # TODO: is this correct?
+img_channels = 4  # TODO: is this correct? probably not
 epochs = 1
 learning_rate = 1e-4
 

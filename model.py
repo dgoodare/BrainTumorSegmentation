@@ -5,7 +5,7 @@ import torchvision.transforms.functional as TF
 # TODO: check what the input channels will be for a 3D convolution
 """ will the channels represent the modalities or the number of slices?"""
 
-# TODO: check if the ordering of the input shape matters - if so, what is the correct order?
+# TODO: check if the ordering of the input shape matters - if so what is the correct order?
 
 
 class DoubleConv(nn.Module):

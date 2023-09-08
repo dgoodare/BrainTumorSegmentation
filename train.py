@@ -13,7 +13,7 @@ from visualiser import Visualiser
 
 
 class Trainer:
-    """A class that encapsulates the creation and training of a model"""
+    """A class that encapsulates the creation and training loop of a model"""
     def __init__(self, batch, size, channels, epochs, lr, modalities=4):
         """
         Initialise model, dataset, loss function, and any hyperparameters

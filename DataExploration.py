@@ -1,9 +1,6 @@
 import matplotlib.pyplot as plt
-from skimage import data
 from skimage.util import montage
-import skimage.transform as trans
 from skimage.transform import rotate
-from skimage.transform import resize
 import shutil
 
 # neural imaging libraries

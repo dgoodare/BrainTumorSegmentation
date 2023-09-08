@@ -3,6 +3,7 @@ import torch.nn as nn
 
 
 class DiceLoss(nn.Module):
+    """class to represent a dice loss function"""
     def __init(self, weight=None, size_average=True):
         super(DiceLoss, self).__init__()
 

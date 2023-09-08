@@ -7,6 +7,7 @@ from shutil import rmtree
 
 
 class Visualiser:
+    """class that include functionality for visualising the training process"""
     def __init__(self, logdir, clean_old=False):
         self.logdir = logdir
 

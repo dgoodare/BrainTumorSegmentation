@@ -1,6 +1,9 @@
+# directories
 RawData/
 TrainingData/
 logs/
 TrainedModels
+
+# files
 name_mapping.csv
 survival_info.csv

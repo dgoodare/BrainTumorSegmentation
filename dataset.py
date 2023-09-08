@@ -9,6 +9,7 @@ DATASET_PATH = 'RawData'
 
 
 class BraTSDataset(Dataset):
+    """a class to reprensent a dataset of multi modal MR images"""
     def __init__(self, directory, transform=None):
         self.dir = directory
         self.transform = transform
