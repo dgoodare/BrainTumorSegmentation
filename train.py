@@ -12,8 +12,8 @@ from model import UNet
 from visualiser import Visualiser
 
 
-class Trainer:
-    """A class that encapsulates the creation and training loop of a model"""
+class TrainingLoop:
+    """A class that encapsulates the creation and training of a UNet segmentation model"""
     def __init__(self, batch, size, channels, epochs, lr, modalities=4):
         """
         Initialise model, dataset, loss function, and any hyperparameters
@@ -25,11 +25,11 @@ class Trainer:
         self.modalities = modalities
         self.epochs = epochs
         self.learning_rate = lr
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"  # determine where the model will be trained
+        self.device = "cpu"  # "cuda" if torch.cuda.is_available() else "cpu"
 
         self.dataloader = self.create_dataloader()  # the 'dataset'
         self.loss = DiceLoss()  # loss function
-        self.model = UNet(in_channels=self.img_channels)  # the UNet model that is being trained
+        self.model = UNet(in_channels=self.img_channels).to(self.device)  # the UNet model that is being trained
         self.optimiser = optim.Adam(params=self.model.parameters(),
                                     lr=self.learning_rate,
                                     betas=(0.9, 0.999),  # these are the amount that the LR will decay by over time
@@ -47,7 +47,8 @@ class Trainer:
                     mean=[0.0, 0.0, 0.0],
                     std=[1.0, 1.0, 1.0]
                 ),
-                transforms.ToTensor()
+                transforms.ToTensor(),
+                transforms.Resize(64)
             ]
         )
         dataset = BraTSDataset('TrainingData')  # TODO: add transforms later
@@ -88,13 +89,17 @@ class Trainer:
                 "==============================================\n"
             )
 
-            for batch_idx, sample in enumerate(self.dataloader):
+            accumulation_steps = 5
 
+            for batch_idx, sample in enumerate(self.dataloader):
+                print(f"batch {batch_idx}...")
                 # TODO: there will likely be some data manipulation needing to be done here
                 # extract the 4 modalities from the sample
                 input = sample[0].to(self.device)
                 # extract the target mask
                 target = sample[1].to(self.device)
+
+                print(f"input shape: {input.shape}")
 
                 # forward pass
                 with torch.cuda.amp.autocast():
@@ -105,7 +110,10 @@ class Trainer:
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimiser)
                 self.scaler.update()
-                self.optimiser.zero_grad()
+
+                if (batch_idx+1) % accumulation_steps == 0:
+                    self.optimiser.step()
+                    self.optimiser.zero_grad()
 
                 # update logs every 10 batches
                 if batch_idx % 10 == 0:

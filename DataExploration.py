@@ -23,8 +23,8 @@ def get_data_shape():
     print(f"flair shape; {test_flair.shape}")
     print(f"t1 shape; {test_t1.shape}")
     print(f"t1ce shape; {test_t1ce.shape}")
-    print(f"flair shape; {test_flair.shape}")
-    print(f"flair shape; {test_flair.shape}")
+    print(f"t2 shape; {test_t2.shape}")
+    print(f"mask shape; {test_mask.shape}")
 
 
 def display_slice(slice):
@@ -62,5 +62,5 @@ def get_sample_shape():
     print(f"sample shape: {sample.shape}")
 
 
-# display_slice(25)
-get_sample_shape()
+display_slice(25)
+# get_sample_shape()

@@ -25,7 +25,7 @@ class DoubleConv(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels, out_channels=1, features=[64, 128, 256, 512]):
+    def __init__(self, in_channels, out_channels=1, features=[8, 16, 32, 64]):
         super(UNet, self).__init__()
         self.down_samples = nn.ModuleList()
         self.up_samples = nn.ModuleList()
@@ -39,6 +39,9 @@ class UNet(nn.Module):
             )
             in_channels = feature
 
+        # initialise weights
+        self.down_samples.apply(self.init_weights)
+
         ###  Up Sampling  ###
         for feature in reversed(features):
             self.up_samples.append(
@@ -46,8 +49,15 @@ class UNet(nn.Module):
             )
             self.up_samples.append(DoubleConv(feature*2, feature))
 
+        # initialise weights
+        self.up_samples.apply(self.init_weights)
+
         self.bottleneck = DoubleConv(features[-1], features[-1]*2)
         self.final_conv = nn.Conv3d(features[0], out_channels, kernel_size=1)
+
+    def init_weights(self, module):
+        if isinstance(module, nn.Conv3d):
+            nn.init.xavier_uniform_(module.weight)
 
     def forward(self, x):
         skip_connections = []
@@ -67,6 +77,8 @@ class UNet(nn.Module):
 
             # make sure sizes match
             if x.shape != skip_connection.shape:
+                print(f"x: {x.shape}")
+                print(f"skip connections: {skip_connection.shape}")
                 x = TF.resize(x, size=skip_connection.shape[2:], antialias=True)
 
             concat_skip = torch.cat((skip_connection, x), dim=1)
@@ -78,5 +90,5 @@ class UNet(nn.Module):
 def test():
     x = torch.randn((3, 1, 161, 161))
     model = UNet(in_channels=1, out_channels=1)
-    preds = model(x)
-    assert preds.shape == x.shape
+    prediction = model(x)
+    assert prediction.shape == x.shape
