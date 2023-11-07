@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
 
-# TODO: check what the input channels will be for a 3D convolution
-""" will the channels represent the modalities or the number of slices?"""
 
-# TODO: check if the ordering of the input shape matters - if so what is the correct order?
+def init_weights(module):
+    if isinstance(module, nn.Conv3d):
+        nn.init.xavier_uniform_(module.weight)
 
 
 class DoubleConv(nn.Module):
@@ -25,8 +25,10 @@ class DoubleConv(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels, out_channels=1, features=[8, 16, 32, 64]):
+    def __init__(self, in_channels, out_channels=1, features=None):
         super(UNet, self).__init__()
+        if features is None:
+            features = [16, 32, 64, 128]
         self.down_samples = nn.ModuleList()
         self.up_samples = nn.ModuleList()
         self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
@@ -40,7 +42,7 @@ class UNet(nn.Module):
             in_channels = feature
 
         # initialise weights
-        self.down_samples.apply(self.init_weights)
+        self.down_samples.apply(init_weights)
 
         ###  Up Sampling  ###
         for feature in reversed(features):
@@ -50,14 +52,10 @@ class UNet(nn.Module):
             self.up_samples.append(DoubleConv(feature*2, feature))
 
         # initialise weights
-        self.up_samples.apply(self.init_weights)
+        self.up_samples.apply(init_weights)
 
         self.bottleneck = DoubleConv(features[-1], features[-1]*2)
         self.final_conv = nn.Conv3d(features[0], out_channels, kernel_size=1)
-
-    def init_weights(self, module):
-        if isinstance(module, nn.Conv3d):
-            nn.init.xavier_uniform_(module.weight)
 
     def forward(self, x):
         skip_connections = []
@@ -72,14 +70,18 @@ class UNet(nn.Module):
         skip_connections = skip_connections[::-1]
 
         for idx in range(0, len(self.up_samples), 2):
+            print(f"x (before): {x.shape}")
             x = self.up_samples[idx](x)
+            print(f"x (upsampled): {x.shape}")
             skip_connection = skip_connections[idx//2]
 
             # make sure sizes match
             if x.shape != skip_connection.shape:
-                print(f"x: {x.shape}")
+                print(f"index: {idx}")
+                print(f"up sample: {len(self.up_samples)}")
                 print(f"skip connections: {skip_connection.shape}")
-                x = TF.resize(x, size=skip_connection.shape[2:], antialias=True)
+                x = TF.resize(x, size=[155, 64, 64], antialias=True)
+                print(f"x (resized): {x.shape}")
 
             concat_skip = torch.cat((skip_connection, x), dim=1)
             x = self.up_samples[idx+1](concat_skip)
@@ -88,7 +90,8 @@ class UNet(nn.Module):
 
 
 def test():
-    x = torch.randn((3, 1, 161, 161))
-    model = UNet(in_channels=1, out_channels=1)
+    x = torch.randn((8, 4, 155, 64, 64))
+    model = UNet(in_channels=4)
     prediction = model(x)
     assert prediction.shape == x.shape
+

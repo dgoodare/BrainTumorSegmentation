@@ -2,7 +2,7 @@ import os
 import time
 import nibabel as nib
 import numpy as np
-from torch import from_numpy, save, load, stack
+from torch import from_numpy, save, load, stack, permute
 import torchvision
 from torch.utils.data import Dataset
 
@@ -71,6 +71,16 @@ def create_ids(dir_list):
     return ids
 
 
+def pre_process(nii):
+    # convert from nii -> numpy -> tensor
+    t = from_numpy(np.array(nii.dataobj, dtype='float32'))
+    # reorder dimensions
+    p = permute(t, (2, 1, 0))
+    # downsize
+    d = torchvision.transforms.Resize(size=(64, 64))(p)
+    return d
+
+
 def create_dataset():
     start_time = time.time()
 
@@ -88,34 +98,23 @@ def create_dataset():
         nii_mask = nib.nifti1.load(f"{DATASET_PATH}/{current}/{current}_seg.nii")
 
         # convert from nii to tensor
-        flair = from_numpy(np.array(nii_flair.dataobj, dtype='float32'))
-        t1 = from_numpy(np.array(nii_t1.dataobj, dtype='float32'))
-        t1ce = from_numpy(np.array(nii_t1ce.dataobj, dtype='float32'))
-        t2 = from_numpy(np.array(nii_t2.dataobj, dtype='float32'))
-        mask = from_numpy(np.array(nii_mask.dataobj, dtype='float32'))
-
-        print(f"original shape: {flair.shape}")
-        # reduce resolution (for the sake of memory optimisation)
-        # TODO: currently the data gets resized in the wrong dimensions.
-        #  It gets resized from [240, 240, 155] to [240, 64, 64]. It should be [64, 64, 155]
-        flair_resized = torchvision.transforms.Resize(size=(64, 64))(flair)
-        t1_resized = torchvision.transforms.Resize(size=(64, 64))(t1)
-        t1ce_resized = torchvision.transforms.Resize(size=(64, 64))(t1ce)
-        t2_resized = torchvision.transforms.Resize(size=(64, 64))(t2)
-        mask_resized = torchvision.transforms.Resize(size=(64, 64))(mask)
+        flair = pre_process(nii_flair)
+        t1 = pre_process(nii_t1)
+        t1ce = pre_process(nii_t1ce)
+        t2 = pre_process(nii_t2)
+        mask = pre_process(nii_mask)
 
         # combine modalities into a single sample
-        sample = stack((flair_resized, t1_resized, t1ce_resized, t2_resized), 0)
-
-        print(f"resized shape: {flair_resized.shape}")
+        sample = stack((flair, t1, t1ce, t2), 0)
 
         # create directory for each id
         os.mkdir(f"TrainingData/{id}")
+
         # save tensors in new directory
         save(sample, f"TrainingData/{id}/sample.pt")
-        save(mask_resized, f"TrainingData/{id}/mask.pt")
+        save(mask, f"TrainingData/{id}/mask.pt")
 
     print(f"Dataset created in {time.time()-start_time:.2f} seconds")
 
 
-create_dataset()
+# create_dataset()

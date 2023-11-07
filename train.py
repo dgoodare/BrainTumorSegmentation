@@ -14,7 +14,7 @@ from visualiser import Visualiser
 
 class TrainingLoop:
     """A class that encapsulates the creation and training of a UNet segmentation model"""
-    def __init__(self, batch, size, channels, epochs, lr, modalities=4):
+    def __init__(self, batch, size, channels, epochs, lr):
         """
         Initialise model, dataset, loss function, and any hyperparameters
         that will be used during the training loop
@@ -22,7 +22,6 @@ class TrainingLoop:
         self.batch_size = batch
         self.img_size = size
         self.img_channels = channels
-        self.modalities = modalities
         self.epochs = epochs
         self.learning_rate = lr
         self.device = "cpu"  # "cuda" if torch.cuda.is_available() else "cpu"
@@ -48,7 +47,6 @@ class TrainingLoop:
                     std=[1.0, 1.0, 1.0]
                 ),
                 transforms.ToTensor(),
-                transforms.Resize(64)
             ]
         )
         dataset = BraTSDataset('TrainingData')  # TODO: add transforms later
