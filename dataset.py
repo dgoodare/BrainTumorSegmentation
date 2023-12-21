@@ -2,7 +2,7 @@ import os
 import time
 import nibabel as nib
 import numpy as np
-from torch import from_numpy, save, load, stack, permute
+from torch import from_numpy, save, load, stack, permute, zeros, cat
 import torchvision
 from torch.utils.data import Dataset
 
@@ -78,7 +78,10 @@ def pre_process(nii):
     p = permute(t, (2, 1, 0))
     # downsize
     d = torchvision.transforms.Resize(size=(64, 64))(p)
-    return d
+    # to prevent rounding issues when downsampling during training, we need the number of slices to be even
+    # so we add an extra slice of just zeros
+    zero_padding = zeros(1, 64, 64)
+    return cat([d, zero_padding], 0)
 
 
 def create_dataset():

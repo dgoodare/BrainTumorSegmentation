@@ -8,83 +8,55 @@ def init_weights(module):
         nn.init.xavier_uniform_(module.weight)
 
 
-class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(DoubleConv, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv3d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv3d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
-        )
-
-    def forward(self, x):
-        return self.conv(x)
+def double_conv(in_channels, out_channels):
+    return nn.Sequential(
+        nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
+        nn.BatchNorm3d(out_channels),
+        nn.ReLU(inplace=True),
+        nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
+        nn.BatchNorm3d(out_channels),
+        nn.ReLU(inplace=True),
+    )
 
 
 class UNet(nn.Module):
     def __init__(self, in_channels, out_channels=1, features=None):
         super(UNet, self).__init__()
         if features is None:
-            features = [16, 32, 64, 128]
-        self.down_samples = nn.ModuleList()
-        self.up_samples = nn.ModuleList()
-        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
+            features = [64, 128, 256]
 
-        """Initialise layers for down sampling and up sampling"""
-        ###  Down Sampling  ##
-        for feature in features:
-            self.down_samples.append(
-                DoubleConv(in_channels, feature)
-            )
-            in_channels = feature
+        # Down sampling
+        self.down1 = double_conv(in_channels, features[0])
+        self.down2 = double_conv(features[0], features[1])
+        self.down3 = double_conv(features[1], features[2])
 
-        # initialise weights
-        self.down_samples.apply(init_weights)
+        self.maxpool = nn.MaxPool3d(2)
+        self.upsample = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True)
 
-        ###  Up Sampling  ###
-        for feature in reversed(features):
-            self.up_samples.append(
-                nn.ConvTranspose3d(feature*2, feature, kernel_size=2, stride=2)
-            )
-            self.up_samples.append(DoubleConv(feature*2, feature))
+        self.up1 = double_conv(features[1]+features[2], features[1])
+        self.up2 = double_conv(features[0]+features[1], features[0])
 
-        # initialise weights
-        self.up_samples.apply(init_weights)
-
-        self.bottleneck = DoubleConv(features[-1], features[-1]*2)
-        self.final_conv = nn.Conv3d(features[0], out_channels, kernel_size=1)
+        self.final_conv = nn.Conv3d(features[0], out_channels, 1)
 
     def forward(self, x):
-        skip_connections = []
+        # down sampling
+        conv1 = self.down1(x)
+        x = self.maxpool(conv1)
 
-        for down in self.down_samples:
-            x = down(x)
-            skip_connections.append(x)
-            self.pool(x)
+        conv2 = self.down2(x)
+        x = self.maxpool(conv2)
 
-        x = self.bottleneck(x)
-        # reverse skip connections
-        skip_connections = skip_connections[::-1]
+        x = self.down3(x)
 
-        for idx in range(0, len(self.up_samples), 2):
-            print(f"x (before): {x.shape}")
-            x = self.up_samples[idx](x)
-            print(f"x (upsampled): {x.shape}")
-            skip_connection = skip_connections[idx//2]
+        # upsampling
+        x = self.upsample(x)
+        x = torch.cat([x, conv2], dim=1)
 
-            # make sure sizes match
-            if x.shape != skip_connection.shape:
-                print(f"index: {idx}")
-                print(f"up sample: {len(self.up_samples)}")
-                print(f"skip connections: {skip_connection.shape}")
-                x = TF.resize(x, size=[155, 64, 64], antialias=True)
-                print(f"x (resized): {x.shape}")
+        x = self.up1(x)
+        x = self.upsample(x)
+        x = torch.cat([x, conv1], dim=1)
 
-            concat_skip = torch.cat((skip_connection, x), dim=1)
-            x = self.up_samples[idx+1](concat_skip)
+        x = self.up2(x)
 
         return self.final_conv(x)
 
