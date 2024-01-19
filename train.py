@@ -24,7 +24,7 @@ class TrainingLoop:
         self.img_channels = channels
         self.epochs = epochs
         self.learning_rate = lr
-        self.device = "cpu"  # "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.dataloader = self.create_dataloader()  # the 'dataset'
         self.loss = DiceLoss()  # loss function
@@ -55,7 +55,6 @@ class TrainingLoop:
     @staticmethod
     def get_input_slices(input, slice_no):
         """Extracts a set of example slices for each modality from the current batch"""
-        # TODO: the dimensions will probably need to be rearranged to get this to work
         flair = input[0][slice_no]
         t1 = input[0][slice_no]
         t1ce = input[0][slice_no]
@@ -78,8 +77,18 @@ class TrainingLoop:
         torch.save(model, filename)
         print(f"{filename} saved")
 
+    def print_model_details(self):
+        print(f"Batch size : {self.batch_size} \n"
+              f"Image channels : {self.img_channels} \n"
+              f"Epochs : {self.epochs} \n"
+              f"Learning rate : {self.learning_rate} \n"
+              f"Device : {self.device} \n"
+              )
+
     def train(self):
         """The main training loop"""
+        self.print_model_details()
+
         for epoch in range(self.epochs):
             print(
                 "\n==============================================\n"
@@ -97,14 +106,14 @@ class TrainingLoop:
                 # extract the target mask
                 target = sample[1].to(self.device)
 
-                print(f"input shape: {input.shape}")
-
                 # forward pass
+                print("starting forward pass...")
                 with torch.cuda.amp.autocast():
                     prediction = self.model(input)
                     loss = self.loss.forward(prediction, target)
 
                 # backward pass
+                print("starting backward pass...")
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimiser)
                 self.scaler.update()
@@ -113,14 +122,18 @@ class TrainingLoop:
                     self.optimiser.step()
                     self.optimiser.zero_grad()
 
+                squeezed = torch.squeeze(prediction, 1)
+
                 # update logs every 10 batches
                 if batch_idx % 10 == 0:
+                    print(f"updating logs...")
                     print(f"batch {batch_idx}/{len(self.dataloader)}")
 
                     # get some examples slices from the first sample in the current batch
                     slice_no = 50
                     input_slices = self.get_input_slices(input[0], slice_no)
-                    prediction_slice = self.get_mask_slice(prediction[0], slice_no)
+
+                    prediction_slice = self.get_mask_slice(squeezed[0], slice_no)
                     target_slice = self.get_mask_slice(target[0], slice_no)
 
                     # visualise the extracted slices and the current loss value
@@ -130,5 +143,4 @@ class TrainingLoop:
         # save the trained model
         filename = datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".pth"
         self.save_model(filename)
-
 

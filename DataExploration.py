@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 from skimage.util import montage
 from skimage.transform import rotate
-import shutil
 
 # neural imaging libraries
 import nibabel as nib
@@ -25,6 +24,14 @@ def get_data_shape():
     print(f"t1ce shape; {test_t1ce.shape}")
     print(f"t2 shape; {test_t2.shape}")
     print(f"mask shape; {test_mask.shape}")
+
+
+def write_gif():
+    nif2gif.write_gif_normal(DATASET_PATH + 'BraTS20_Training_001/BraTS20_Training_001_flair.nii')
+    nif2gif.write_gif_normal(DATASET_PATH + 'BraTS20_Training_001/BraTS20_Training_001_t1.nii')
+    nif2gif.write_gif_normal(DATASET_PATH + 'BraTS20_Training_001/BraTS20_Training_001_t1ce.nii')
+    nif2gif.write_gif_normal(DATASET_PATH + 'BraTS20_Training_001/BraTS20_Training_001_t2.nii')
+    nif2gif.write_gif_normal(DATASET_PATH + 'BraTS20_Training_001/BraTS20_Training_001_seg.nii')
 
 
 def display_slice(slice):
@@ -60,7 +67,3 @@ def display_slice(slice):
 def get_sample_shape():
     sample = torch.load("TrainingData/001/sample.pt")
     print(f"sample shape: {sample.shape}")
-
-
-display_slice(25)
-# get_sample_shape()
