@@ -53,14 +53,16 @@ def display_slice(slice):
     ax4.imshow(test_t2[:, :, test_t2.shape[0] // 2 - slice], cmap='gray')
     ax4.set_title('t2')
     ax5.imshow(test_mask[:, :, test_mask.shape[0] // 2 - slice], cmap='gray')
-    ax5.set_title('mask')
+    ax5.set_title('Segmentation')
     plt.show()
 
-    fig, ax1 = plt.subplots(1, 1, figsize=(15, 15))
-    ax1.imshow(rotate(montage(test_t1[50:-50, :, :]), 90, resize=True), cmap='gray')
+    fig, ax6 = plt.subplots(1, 1, figsize=(15, 15))
+    ax6.imshow(rotate(montage(test_t1[50:-50, :, :]), 90, resize=True), cmap='gray')
+    ax6.set_title('T1 all slices')
     plt.show()
-    fig, ax5 = plt.subplots(1, 1, figsize=(15, 15))
-    ax5.imshow(rotate(montage(test_mask[50:-50, :, :]), 90, resize=True), cmap='gray')
+    fig, ax7 = plt.subplots(1, 1, figsize=(15, 15))
+    ax7.imshow(rotate(montage(test_mask[50:-50, :, :]), 90, resize=True), cmap='gray')
+    ax7.set_title("Segmentation all slices")
     plt.show()
 
 
