@@ -12,9 +12,23 @@ from model import UNet
 from visualiser import Visualiser
 
 
+def get_input_slices(input, slice_no):
+    """Extracts a set of example slices for each modality from the current batch"""
+    flair = input[0][slice_no]
+    t1 = input[0][slice_no]
+    t1ce = input[0][slice_no]
+    t2 = input[0][slice_no]
+    return [flair, t1, t1ce, t2]
+
+
+def get_mask_slice(mask, slice_no):
+    """Get an example slice from a mask (this can be either a prediction or a target)"""
+    return mask[slice_no]
+
+
 class TrainingLoop:
     """A class that encapsulates the creation and training of a UNet segmentation model"""
-    def __init__(self, batch, size, channels, epochs, lr):
+    def __init__(self, batch, size, channels, epochs, lr, model_name, prune):
         """
         Initialise model, dataset, loss function, and any hyperparameters
         that will be used during the training loop
@@ -24,8 +38,10 @@ class TrainingLoop:
         self.img_channels = channels
         self.epochs = epochs
         self.learning_rate = lr
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model_name = model_name
+        self.prune = prune
 
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.dataloader = self.create_dataloader()  # the 'dataset'
         self.loss = DiceLoss()  # loss function
         self.model = UNet(in_channels=self.img_channels).to(self.device)  # the UNet model that is being trained
@@ -51,21 +67,6 @@ class TrainingLoop:
         )
         dataset = BraTSDataset('TrainingData')  # TODO: add transforms later
         return DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
-
-    @staticmethod
-    def get_input_slices(input, slice_no):
-        """Extracts a set of example slices for each modality from the current batch"""
-        flair = input[0][slice_no]
-        t1 = input[0][slice_no]
-        t1ce = input[0][slice_no]
-        t2 = input[0][slice_no]
-
-        return [flair, t1, t1ce, t2]
-
-    @staticmethod
-    def get_mask_slice(mask, slice_no):
-        """Get an example slice from a mask (this can be either a prediction or a target)"""
-        return mask[slice_no]
 
     def save_model(self, filename):
         """Save an iteration of a (semi)trained model"""
@@ -131,16 +132,20 @@ class TrainingLoop:
 
                     # get some examples slices from the first sample in the current batch
                     slice_no = 50
-                    input_slices = self.get_input_slices(input[0], slice_no)
+                    input_slices = get_input_slices(input[0], slice_no)
 
-                    prediction_slice = self.get_mask_slice(squeezed[0], slice_no)
-                    target_slice = self.get_mask_slice(target[0], slice_no)
+                    prediction_slice = get_mask_slice(squeezed[0], slice_no)
+                    target_slice = get_mask_slice(target[0], slice_no)
 
                     # visualise the extracted slices and the current loss value
                     self.visualiser.plot(input_slices, prediction_slice, target_slice, loss)
                     self.visualiser.step += 1
 
-        # save the trained model
-        filename = datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".pth"
-        self.save_model(filename)
+        if self.prune:
+            # optionally, prune the connections in the network
+            self.model.prune_network()
+
+        # After the training has finished, save the trained model
+        time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".pth"
+        self.save_model(self.model_name+time)
 

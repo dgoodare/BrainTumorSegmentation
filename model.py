@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
+import torch.nn.utils.prune as prune
 
 
 def init_weights(module):
@@ -29,8 +30,9 @@ class UNet(nn.Module):
         self.down1 = double_conv(in_channels, features[0])
         self.down2 = double_conv(features[0], features[1])
         self.down3 = double_conv(features[1], features[2])
-
         self.maxpool = nn.MaxPool3d(2)
+
+        # Up sampling
         self.upsample = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True)
 
         self.up1 = double_conv(features[1]+features[2], features[1])
@@ -48,7 +50,7 @@ class UNet(nn.Module):
 
         x = self.down3(x)
 
-        # upsampling
+        # up sampling
         x = self.upsample(x)
         x = torch.cat([x, conv2], dim=1)
 
@@ -59,6 +61,15 @@ class UNet(nn.Module):
         x = self.up2(x)
 
         return self.final_conv(x)
+
+    def prune_network(self):
+        prune.random_structured(self.down1, name="weight", amount=0.3, dim=0)
+        prune.random_structured(self.down2, name="weight", amount=0.3, dim=0)
+        prune.random_structured(self.down3, name="weight", amount=0.3, dim=0)
+        prune.random_structured(self.upsample, name="weight", amount=0.3, dim=0)
+        prune.random_structured(self.up1, name="weight", amount=0.3, dim=0)
+        prune.random_structured(self.up2, name="weight", amount=0.3, dim=0)
+        prune.random_structured(self.final_conv, name="weight", amount=0.3, dim=0)
 
 
 def test():
